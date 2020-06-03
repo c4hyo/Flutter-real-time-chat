@@ -1,0 +1,81 @@
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:pusher_websocket_flutter/pusher.dart';
+
+class MyHomePage extends StatefulWidget {
+  @override
+  _MyHomePageState createState() => _MyHomePageState();
+}
+
+class _MyHomePageState extends State<MyHomePage> {
+  Channel _channel;
+  String _event = r"App\Events\MessageSent";
+  List _chats = [];
+
+  @override
+  void initState() {
+    _initPusher();
+    super.initState();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+        appBar: AppBar(
+          title: Text("Latihan Pusher"),
+        ),
+        body: Column(
+          children: <Widget>[
+            Expanded(
+              child: ListView.builder(
+                itemCount: _chats.length,
+                itemBuilder: (context, index) {
+                  return Card(
+                    child: ListTile(
+                      title: Text('${_chats[index]['name']}'),
+                      subtitle: Text('${_chats[index]['pesan']}'),
+                      trailing: Text('${_chats[index]['time']}'),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ));
+  }
+
+  Future<void> _initPusher() async {
+    try {
+      await Pusher.init("58e2f8fc06d0bd342705", PusherOptions(cluster: "ap1"));
+    } catch (e) {
+      throw Exception(e);
+    }
+
+    Pusher.connect(
+      onConnectionStateChange: (state) {
+        print(state.currentState);
+      },
+      onError: (err) {
+        print(err.message);
+      },
+    );
+
+    _channel = await Pusher.subscribe("chat");
+
+    _channel.bind(_event, (eventBind) {
+      if (mounted) {
+        final data = json.decode(eventBind.data);
+        print(data['user']['name']);
+        setState(() {
+          _chats.add({
+            "name": data['user']['name'],
+            "token": data['user']['token'],
+            "pesan": data['message']['message'],
+            "time": data['message']['created_at']
+          });
+        });
+      }
+    });
+  }
+}
